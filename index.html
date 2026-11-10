@@ -332,8 +332,8 @@ input[type="number"].btn{width:60px;padding:4px 6px;background:var(--bar2);borde
 <!-- Область страниц -->
 <div class="pagewrap" id="pagewrap">
   <div class="page a4" id="page">
-    <div class="page-inner" id="editor" contenteditable="true" spellcheck="true">
-      <div class="page-sheet"></div>
+    <div class="page-inner" id="editor">
+      <div class="page-sheet" contenteditable="true" spellcheck="true"><p><br></p></div>
     </div>
   </div>
 </div>
@@ -344,7 +344,7 @@ input[type="number"].btn{width:60px;padding:4px 6px;background:var(--bar2);borde
   <span id="statChars">Символов: 0</span>
   <span id="statPages">Страниц: 1</span>
   <span class="spacer"></span>
-  <span>v3.2</span>
+  <span>v3.3</span>
 </div>
 
 <!-- Панель документов -->
@@ -438,7 +438,22 @@ document.querySelectorAll('.rib-tab').forEach(t=>{
 });
 
 /* ====== Editor commands ====== */
-function cmd(c,v){document.execCommand(c,false,v);editor.focus();queueSave();}
+let savedRange=null;
+function saveSelection(){
+  const sel=getSelection();
+  if(sel.rangeCount)savedRange=sel.getRangeAt(0);
+}
+function restoreSelection(){
+  if(!savedRange)return;
+  const sel=getSelection();
+  sel.removeAllRanges();
+  sel.addRange(savedRange);
+}
+function cmd(c,v){
+  restoreSelection();
+  document.execCommand(c,false,v);
+  queueSave();
+}
 
 /* ====== Toolbar sync ====== */
 document.addEventListener('selectionchange',()=>{
@@ -941,7 +956,7 @@ const TEMPLATES={
 function loadTemplate(name){
   const html=TEMPLATES[name]||'';
   if(!html)return;
-  editor.innerHTML='<div class="page-sheet">'+html+'</div>';
+  editor.innerHTML='<div class="page-sheet" contenteditable="true" spellcheck="true">'+html+'</div>';
   titleInp.value='Шаблон: '+(name==='business'?'Деловое письмо':name==='resume'?'Резюме':name==='todo'?'Список дел':'Эссе');
   queueSave();
   closeDialog();
@@ -959,7 +974,7 @@ function importDocx(inp){
     // Use mammoth.js if available
     if(typeof mammoth!=='undefined'){
       mammoth.convertToHtml({arrayBuffer:data}).then(result=>{
-        editor.innerHTML='<div class="page-sheet">'+result.value+'</div>';
+        editor.innerHTML='<div class="page-sheet" contenteditable="true" spellcheck="true">'+result.value+'</div>';
         titleInp.value=f.name.replace(/\.docx$/i,'');
         queueSave();
         showProgress(false);
@@ -982,9 +997,9 @@ function importDocx(inp){
           .replace(/<w:t[^>]*>/g,'')
           .replace(/<\/w:t>/g,'')
           .replace(/<[^>]+>/g,'');
-        editor.innerHTML='<div class="page-sheet"><p>'+esc(html)+'</p></div>';
+        editor.innerHTML='<div class="page-sheet" contenteditable="true" spellcheck="true"><p>'+esc(html)+'</p></div>';
       }else{
-        editor.innerHTML='<div class="page-sheet"><p>Не удалось прочитать файл. Установите mammoth.js для лучшей поддержки.</p></div>';
+        editor.innerHTML='<div class="page-sheet" contenteditable="true" spellcheck="true"><p>Не удалось прочитать файл. Установите mammoth.js для лучшей поддержки.</p></div>';
       }
       titleInp.value=f.name.replace(/\.docx$/i,'');
       queueSave();
@@ -999,7 +1014,7 @@ function importHtml(inp){
   if(!f)return;
   const r=new FileReader();
   r.onload=e=>{
-    editor.innerHTML='<div class="page-sheet">'+e.target.result+'</div>';
+    editor.innerHTML='<div class="page-sheet" contenteditable="true" spellcheck="true">'+e.target.result+'</div>';
     titleInp.value=f.name.replace(/\.html?$/i,'');
     queueSave();
     saveHint.textContent='Импорт HTML завершён';
@@ -1013,7 +1028,7 @@ function importTxt(inp){
   const r=new FileReader();
   r.onload=e=>{
     const text=e.target.result.replace(/\n/g,'<br>');
-    editor.innerHTML='<div class="page-sheet"><p>'+text+'</p></div>';
+    editor.innerHTML='<div class="page-sheet" contenteditable="true" spellcheck="true"><p>'+text+'</p></div>';
     titleInp.value=f.name.replace(/\.txt$/i,'');
     queueSave();
     saveHint.textContent='Импорт текста завершён';
@@ -1136,13 +1151,17 @@ function openDoc(id){
   parts.forEach(part=>{
     const sheet=document.createElement('div');
     sheet.className='page-sheet';
-    sheet.innerHTML=part;
+    sheet.setAttribute('contenteditable','true');
+    sheet.setAttribute('spellcheck','true');
+    sheet.innerHTML=part||'<p><br></p>';
     editor.appendChild(sheet);
   });
   if(!editor.querySelector('.page-sheet')){
     const sheet=document.createElement('div');
     sheet.className='page-sheet';
-    sheet.innerHTML='<p></p>';
+    sheet.setAttribute('contenteditable','true');
+    sheet.setAttribute('spellcheck','true');
+    sheet.innerHTML='<p><br></p>';
     editor.appendChild(sheet);
   }
   titleInp.value=d.title;
@@ -1256,21 +1275,26 @@ editor.addEventListener('paste',e=>{
   if(!cd)return;
   const html=cd.getData('text/html');
   e.preventDefault();
-  const sel=getSelection();
-  let target=sel.anchorNode;
+  let target=e.target;
   if(target&&target.nodeType===3)target=target.parentElement;
   target=target&&target.closest?target.closest('.page-sheet'):null;
   if(!target)target=editor.querySelector('.page-sheet:last-child');
+  if(!target)return;
+  target.focus();
   if(html){
     const doc=new DOMParser().parseFromString(html,'text/html');
     cleanNode(doc.body);
-    target.focus();
     document.execCommand('insertHTML',false,doc.body.innerHTML);
   }else{
-    target.focus();
     document.execCommand('insertText',false,cd.getData('text/plain'));
   }
   queueSave();
+});
+
+/* ====== Save selection on mousedown in sheet ====== */
+editor.addEventListener('mousedown',e=>{
+  const sheet=e.target.closest?e.target.closest('.page-sheet'):null;
+  if(sheet)saveSelection();
 });
 
 /* ====== Context menu ====== */
@@ -1288,8 +1312,17 @@ document.addEventListener('click',e=>{
 /* ====== Title change ====== */
 titleInp.addEventListener('input',queueSave);
 
+/* ====== Auto-save on input in any sheet ====== */
+editor.addEventListener('input',e=>{
+  if(e.target.classList&&e.target.classList.contains('page-sheet'))queueSave();
+});
+
 /* ====== Helper: current sheet ====== */
 function getCurrentSheet(){
+  // First try activeElement
+  const ae=document.activeElement;
+  if(ae&&ae.classList&&ae.classList.contains('page-sheet'))return ae;
+  // Fallback via selection
   const sel=getSelection();
   if(!sel.rangeCount)return editor.querySelector('.page-sheet:last-child');
   let node=sel.anchorNode;
@@ -1301,75 +1334,22 @@ function getCurrentSheet(){
   return editor.querySelector('.page-sheet:last-child');
 }
 
-/* ====== Enter fix ====== */
-function getBlockNode(node){
-  const BLOCK=/^(P|H1|H2|H3|H4|H5|H6|LI|BLOCKQUOTE|DIV|PRE)$/i;
-  while(node&&node!==editor){
-    if(node.nodeType===1&&BLOCK.test(node.tagName))return node;
-    node=node.parentElement;
-  }
-  return null;
-}
-function ensureSheetNotEmpty(sheet){
-  if(!sheet.querySelector('p,li,h1,h2,h3,h4,h5,h6,div,blockquote,pre,table,ul,ol')){
-    sheet.innerHTML='<p><br></p>';
-  }
-}
+/* ====== Shift+Enter = soft break ====== */
 editor.addEventListener('keydown', e=>{
-  if(e.key!=='Enter'||e.isComposing)return;
+  if(e.key!=='Enter'||!e.shiftKey||e.isComposing)return;
   e.preventDefault();
+  const sheet=getCurrentSheet();
+  if(!sheet)return;
+  sheet.focus();
   const sel=getSelection();
   if(!sel.rangeCount)return;
   const range=sel.getRangeAt(0);
-
-  if(e.shiftKey){
-    // Soft break — insert <br>
-    const br=document.createElement('br');
-    range.insertNode(br);
-    range.setStartAfter(br);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    queueSave();
-    return;
-  }
-
-  // Hard break — split current block
-  let block=getBlockNode(range.startContainer);
-  if(!block){
-    // If no block found, wrap in <p>
-    const p=document.createElement('p');
-    p.innerHTML='<br>';
-    range.insertNode(p);
-    range.setStart(p,0);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    queueSave();
-    return;
-  }
-
-  // Split the block at cursor position
-  const afterRange=range.cloneRange();
-  afterRange.setEndAfter(block.lastChild||block);
-  const fragment=afterRange.extractContents();
-  const newBlock=document.createElement(block.tagName);
-  newBlock.appendChild(fragment);
-  // Clean up: if empty, put <br>
-  if(!newBlock.textContent.trim())newBlock.innerHTML='<br>';
-  // Copy classes for lists
-  if(block.className)newBlock.className=block.className;
-  block.parentNode.insertBefore(newBlock,block.nextSibling);
-
-  // Move cursor to new block
-  range.setStart(newBlock,0);
+  const br=document.createElement('br');
+  range.insertNode(br);
+  range.setStartAfter(br);
   range.collapse(true);
   sel.removeAllRanges();
   sel.addRange(range);
-
-  // If current block became empty, ensure it has <br>
-  if(!block.textContent.trim())block.innerHTML='<br>';
-
   queueSave();
 });
 
@@ -1482,7 +1462,6 @@ function esc(s){
 
 /* ====== Init ====== */
 (function init(){
-  document.execCommand('defaultParagraphSeparator', false, 'p');
   let d=loadDocs();
   if(!Object.keys(d).length)newDoc('Добро пожаловать!',
     '<h1>Добро пожаловать в МойWord Pro!</h1>'+
@@ -1499,6 +1478,7 @@ function esc(s){
   const m=meta();m.current=first;saveMeta(m);
   openDoc(first);
   applySettings();
+  document.execCommand('defaultParagraphSeparator', false, 'p');
 })();
 
 </script>
