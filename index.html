@@ -124,10 +124,19 @@ dialog input,dialog select,textarea.wide{width:100%;padding:7px 9px;border:1px s
 @media print{
   body{overflow:visible;background:#fff;}
   .topbar,.ribbon,.statusbar,.panel,.overlay,.ctxmenu{display:none!important;}
-  .pagewrap{padding:0;overflow:visible;}
-  .page{box-shadow:none;width:auto!important;min-height:0!important;padding:0!important;margin:0!important;}
-  .page-inner{min-height:0!important;column-gap:8mm;}
+  .pagewrap{padding:0;overflow:visible;display:block;}
+  .page{box-shadow:none;width:auto!important;min-height:0!important;height:auto!important;padding:0!important;margin:0!important;background:#fff;}
+  .page-inner{min-height:0!important;column-gap:8mm;overflow:visible;}
+  .page-inner p,.page-inner li,.page-inner h1,.page-inner h2,.page-inner h3{orphans:2;widows:2;}
+  table,tr,img,blockquote,pre{break-inside:avoid;}
+  h1,h2,h3{break-after:avoid;}
 }
+/* защита от переполнения: длинные слова/ссылки переносятся */
+.page-inner p,.page-inner li,.page-inner td,.page-inner th,.page-inner div,.page-inner blockquote{
+  overflow-wrap:break-word;word-wrap:break-word;
+}
+.page-inner table{table-layout:fixed;width:100%;}
+.page-inner td,.page-inner th{overflow-wrap:break-word;}
 kbd{font-family:inherit;}
 @media (max-width:640px){
   .hint{display:none;}
@@ -135,6 +144,7 @@ kbd{font-family:inherit;}
   .page{width:100%;min-height:70vh;padding:14mm 10mm!important;}
 }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -328,7 +338,7 @@ kbd{font-family:inherit;}
 
 <!-- ================= STATUS BAR ================= -->
 <div class="statusbar">
-  <span id="ver" title="Версия сборки редактора" style="color:var(--accent);font-weight:600;">v1.4</span>
+  <span id="ver" title="Версия сборки редактора" style="color:var(--accent);font-weight:600;">v1.5</span>
   <span id="statWords">Слов: 0</span>
   <span id="statChars">Символов: 0</span>
   <span id="statPages">Страниц: ~1</span>
