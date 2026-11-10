@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>МойWord Pro — редактор в браузере</title>
+<style>
+:root{
+  --bg:#e9edf2; --panel:#fff; --panel2:#f2f5f9; --border:#d5dbe3;
+  --text:#1c2430; --muted:#6b7684; --accent:#2563eb; --accent-h:#1d4ed8;
+  --danger:#dc2626; --page:#fff; --shadow:0 2px 10px rgba(20,30,50,.14);
+  --ribbon:#f7f9fc;
+}
+body.dark{
+  --bg:#12161d; --panel:#1e242e; --panel2:#242c38; --border:#333d4d;
+  --text:#e6eaf0; --muted:#9aa6b5; --page:#f5f6f8; --ribbon:#1a202a;
+  --shadow:0 2px 12px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden;font-size:14px;}
+button{font-family:inherit;}
+/* ===== Top bar ===== */
+.topbar{display:flex;align-items:center;gap:8px;background:var(--panel);border-bottom:1px solid var(--border);padding:6px 12px;z-index:20;flex-wrap:wrap;}
+.logo{font-weight:700;font-size:15px;white-space:nowrap;margin-right:4px;cursor:pointer;}
+.logo span{color:var(--accent);}
+.topbar input[type=text]{background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text);font-size:14px;padding:4px 8px;width:170px;}
+.topbar input[type=text]:hover{border-color:var(--border);}
+.topbar input[type=text]:focus{border-color:var(--accent);outline:none;background:var(--panel2);}
+.spacer{flex:1;}
+.hint{font-size:12px;color:var(--muted);white-space:nowrap;}
+.btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 10px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;line-height:1.3;}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn.primary:hover{background:var(--accent-h);color:#fff;}
+.btn.danger:hover{border-color:var(--danger);color:var(--danger);}
+/* ===== Ribbon ===== */
+.ribbon{background:var(--ribbon);border-bottom:1px solid var(--border);z-index:15;user-select:none;}
+.tabs{display:flex;gap:2px;padding:4px 10px 0;overflow-x:auto;}
+.tab{padding:6px 14px;font-size:13px;border-radius:6px 6px 0 0;cursor:pointer;white-space:nowrap;color:var(--muted);}
+.tab:hover{color:var(--text);}
+.tab.active{background:var(--panel);color:var(--accent);font-weight:600;border:1px solid var(--border);border-bottom-color:var(--panel);}
+.tabpane{display:none;background:var(--panel);border-top:1px solid var(--border);padding:6px 10px;gap:4px;flex-wrap:wrap;align-items:stretch;}
+.tabpane.active{display:flex;}
+.group{display:flex;flex-direction:column;border-right:1px solid var(--border);padding:0 8px;margin-right:4px;}
+.group:last-child{border-right:none;}
+.grouprow{display:flex;gap:3px;flex-wrap:wrap;align-items:center;}
+.grouplabel{text-align:center;font-size:10px;color:var(--muted);margin-top:3px;}
+.ribbtn{background:transparent;border:1px solid transparent;color:var(--text);border-radius:6px;padding:5px 8px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;min-height:34px;}
+.ribbtn:hover{background:var(--panel2);border-color:var(--border);}
+.ribbtn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+.ribbtn .ic{font-size:15px;line-height:1;}
+select.rsel,input.rnum{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 6px;font-size:13px;cursor:pointer;max-width:130px;}
+input.rnum{width:64px;}
+input.rcolor{width:28px;height:28px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);padding:1px;cursor:pointer;}
+/* ===== Page ===== */
+.pagewrap{flex:1;overflow-y:auto;padding:26px 14px 70px;display:flex;flex-direction:column;align-items:center;}
+.page{background:var(--page);color:#111;width:210mm;min-height:297mm;box-shadow:var(--shadow);padding:var(--pt,20mm) var(--pr,15mm) var(--pb,20mm) var(--pl,20mm);position:relative;}
+.page-inner{outline:none;font-family:"Times New Roman",Georgia,serif;font-size:14pt;line-height:1.5;min-height:calc(297mm - var(--pt,20mm) - var(--pb,20mm));}
+.page-inner:empty::before{content:"Начните печатать здесь…";color:#9aa3ad;pointer-events:none;}
+.page-inner h1{font-size:20pt;} .page-inner h2{font-size:16pt;} .page-inner h3{font-size:14pt;}
+.page-inner blockquote{border-left:3px solid #9aa3ad;margin:8px 0;padding:2px 14px;color:#444;}
+.page-inner pre{background:#f0f2f5;border:1px solid #ddd;border-radius:6px;padding:8px 10px;font-size:11pt;overflow-x:auto;}
+.page-inner table{border-collapse:collapse;width:100%;margin:8px 0;}
+.page-inner td,.page-inner th{border:1px solid #777;padding:4px 8px;min-width:20px;}
+.page-inner img{max-width:100%;}
+.page-inner a{color:#1a56cc;}
+.page-inner ul,.page-inner ol{margin:4px 0 4px 24px;}
+/* нестандартные маркеры — через ::before (работает в ЛЮБОМ браузере) */
+.page-inner ul.ul-dash,.page-inner ul.ul-check,.page-inner ul.ul-arrow,.page-inner ul.ul-custom{list-style:none;padding-left:1.4em;}
+.page-inner ul.ul-dash>li,.page-inner ul.ul-check>li,.page-inner ul.ul-arrow>li,.page-inner ul.ul-custom>li{position:relative;padding-left:1.3em;}
+.page-inner ul.ul-dash>li::before{content:"— ";position:absolute;left:0;}
+.page-inner ul.ul-check>li::before{content:"☑ ";position:absolute;left:0;}
+.page-inner ul.ul-arrow>li::before{content:"➢ ";position:absolute;left:0;}
+.page-inner ol.ol-paren{list-style:none;counter-reset:oli;}
+.page-inner ol.ol-paren>li{counter-increment:oli;position:relative;padding-left:2em;}
+.page-inner ol.ol-paren>li::before{content:counter(oli) ") ";position:absolute;left:0;}
+.page-inner ol.ol-alpha{list-style:lower-alpha;} .page-inner ol.ol-ALPHA{list-style:upper-alpha;}
+.page-inner ul.ul-circle{list-style-type:circle;} .page-inner ul.ul-square{list-style-type:square;}
+.page-inner .formula{text-align:center;font-family:"Cambria Math","Times New Roman",serif;margin:8px 0;position:relative;}
+.page-inner .formula .fnum{position:absolute;right:0;top:0;}
+.page-inner .fnote{font-size:10pt;border-top:1px solid #999;margin-top:16px;padding-top:6px;}
+.page-inner .fnote sup{color:#1a56cc;}
+.page.toc-list a{text-decoration:none;color:#111;}
+.cols2{column-count:2;column-gap:24px;} .cols3{column-count:3;column-gap:20px;}
+/* page sizes */
+.page.a5{width:148mm;min-height:210mm;} .page.a5 .page-inner{min-height:calc(210mm - var(--pt,20mm) - var(--pb,20mm));}
+.page.landscape{width:297mm;min-height:210mm;} .page.landscape .page-inner{min-height:calc(210mm - var(--pt,20mm) - var(--pb,20mm));}
+.page.letter{width:216mm;min-height:279mm;} .page.letter .page-inner{min-height:calc(279mm - var(--pt,20mm) - var(--pb,20mm));}
+.page.letter.landscape{width:279mm;min-height:216mm;} .page.letter.landscape .page-inner{min-height:calc(216mm - var(--pt,20mm) - var(--pb,20mm));}
+.page.a5.landscape{width:210mm;min-height:148mm;} .page.a5.landscape .page-inner{min-height:calc(148mm - var(--pt,20mm) - var(--pb,20mm));}
+/* ===== Status bar ===== */
+.statusbar{display:flex;align-items:center;gap:14px;background:var(--panel);border-top:1px solid var(--border);padding:4px 14px;font-size:12px;color:var(--muted);z-index:20;}
+/* ===== Dialogs ===== */
+dialog{border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--text);padding:20px;width:min(520px,94vw);max-height:86vh;overflow-y:auto;box-shadow:0 12px 44px rgba(0,0,0,.4);}
+dialog::backdrop{background:rgba(0,0,0,.45);}
+dialog h3{margin-bottom:12px;font-size:16px;}
+dialog label{display:block;font-size:12px;margin:9px 0 3px;color:var(--muted);}
+dialog input,dialog select,textarea.wide{width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--text);font-size:14px;font-family:inherit;}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+.symgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:4px;margin-top:8px;max-height:220px;overflow-y:auto;}
+.symgrid button{font-size:18px;padding:6px 0;justify-content:center;}
+.kbd{background:var(--panel2);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11px;}
+/* ===== Docs panel ===== */
+.panel{position:fixed;top:0;left:0;bottom:0;width:min(340px,88vw);background:var(--panel);border-right:1px solid var(--border);z-index:40;transform:translateX(-105%);transition:transform .22s;display:flex;flex-direction:column;box-shadow:var(--shadow);}
+.panel.open{transform:none;}
+.panel header{display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--border);font-weight:600;}
+.panel .list{flex:1;overflow-y:auto;padding:8px;}
+.docitem{border:1px solid var(--border);border-radius:8px;padding:9px 10px;margin-bottom:8px;cursor:pointer;display:flex;flex-direction:column;gap:3px;}
+.docitem:hover{border-color:var(--accent);}
+.docitem.active{border-color:var(--accent);background:var(--panel2);}
+.docitem .t{font-weight:600;font-size:13px;word-break:break-word;}
+.docitem .m{font-size:11px;color:var(--muted);}
+.docitem .acts{display:flex;gap:6px;margin-top:4px;}
+.docitem .acts .btn{padding:2px 7px;font-size:11px;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:35;opacity:0;pointer-events:none;transition:opacity .2s;}
+.overlay.show{opacity:1;pointer-events:auto;}
+/* ===== Context menu ===== */
+.ctxmenu{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.3);padding:4px;display:none;min-width:190px;}
+.ctxmenu button{display:flex;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:6px 10px;font-size:13px;border-radius:5px;cursor:pointer;gap:8px;}
+.ctxmenu button:hover{background:var(--panel2);}
+.ctxmenu hr{border:none;border-top:1px solid var(--border);margin:4px 0;}
+/* ===== Print ===== */
+@media print{
+  body{overflow:visible;background:#fff;}
+  .topbar,.ribbon,.statusbar,.panel,.overlay,.ctxmenu{display:none!important;}
+  .pagewrap{padding:0;overflow:visible;}
+  .page{box-shadow:none;width:auto!important;min-height:0!important;padding:0!important;margin:0!important;}
+  .page-inner{min-height:0!important;column-gap:8mm;}
+}
+kbd{font-family:inherit;}
+@media (max-width:640px){
+  .hint{display:none;}
+  .ribbtn{min-height:30px;padding:4px 6px;font-size:12px;}
+  .page{width:100%;min-height:70vh;padding:14mm 10mm!important;}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= TOP BAR ================= -->
+<div class="topbar">
+  <div class="logo" id="logoBtn" title="Показать все документы">📝 Мой<span>Word</span> Pro</div>
+  <input type="text" id="docTitle" value="Документ без названия" title="Название документа">
+  <span class="hint" id="saveHint">Сохранено</span>
+  <div class="spacer"></div>
+  <button class="btn" id="btnDocs" title="Все документы">📁 Документы</button>
+  <button class="btn" id="btnUndo" title="Отменить (Ctrl+Z)">↩</button>
+  <button class="btn" id="btnRedo" title="Повторить (Ctrl+Y)">↪</button>
+  <button class="btn primary" id="btnPrint" title="Печать / сохранить в PDF">🖨 Печать / PDF</button>
+  <button class="btn" id="btnTheme" title="Тёмная тема">🌙</button>
+</div>
+
+<!-- ================= RIBBON ================= -->
+<div class="ribbon">
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="home">Главная</div>
+    <div class="tab" data-tab="insert">Вставка</div>
+    <div class="tab" data-tab="layout">Макет</div>
+    <div class="tab" data-tab="formula">Формулы</div>
+    <div class="tab" data-tab="file">Файл</div>
+  </div>
+
+  <!-- Главная -->
+  <div class="tabpane active" data-pane="home">
+    <div class="group"><div class="grouprow">
+      <select class="rsel" id="blockSel" title="Стиль абзаца">
+        <option value="p">Обычный текст</option><option value="h1">Заголовок 1</option>
+        <option value="h2">Заголовок 2</option><option value="h3">Заголовок 3</option>
+        <option value="blockquote">Цитата</option><option value="pre">Блок кода</option>
+      </select>
+    </div><div class="grouplabel">Стили</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-cmd="bold" title="Жирный (Ctrl+B)"><span class="ic"><b>Ж</b></span></button>
+      <button class="ribbtn" data-cmd="italic" title="Курсив (Ctrl+I)"><span class="ic"><i>К</i></span></button>
+      <button class="ribbtn" data-cmd="underline" title="Подчёркнутый (Ctrl+U)"><span class="ic"><u>Ч</u></span></button>
+      <button class="ribbtn" data-cmd="strikeThrough" title="Зачёркнутый"><span class="ic"><s>ab</s></span></button>
+      <button class="ribbtn" id="btnCase" title="Регистр: ВСЕ ПРОПИСНЫЕ / строчные / С Заглавных">Аа</button>
+    </div><div class="grouplabel">Шрифт</div></div>
+    <div class="group"><div class="grouprow">
+      <select class="rsel" id="fontSel" title="Шрифт">
+        <option value='"Times New Roman",Georgia,serif'>Times New Roman</option>
+        <option value='Arial,Helvetica,sans-serif'>Arial</option>
+        <option value='Calibri,"Segoe UI",sans-serif'>Calibri</option>
+        <option value='Georgia,serif'>Georgia</option>
+        <option value='"Courier New",monospace'>Courier New</option>
+        <option value='Verdana,sans-serif'>Verdana</option>
+      </select>
+      <input class="rnum" type="number" id="fontPt" min="6" max="72" value="14" title="Размер шрифта, пунктов">
+      <input class="rcolor" type="color" id="foreColor" value="#1c2430" title="Цвет текста">
+      <input class="rcolor" type="color" id="hlColor" value="#ffff00" title="Выделение цветом">
+      <button class="ribbtn" id="btnFormatPaint" title="Копировать формат (кисточка)">🖌</button>
+    </div><div class="grouplabel">Шрифт и цвет</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-cmd="justifyLeft" title="Слева">⇤</button>
+      <button class="ribbtn" data-cmd="justifyCenter" title="По центру">↔</button>
+      <button class="ribbtn" data-cmd="justifyRight" title="Справа">⇥</button>
+      <button class="ribbtn" data-cmd="justifyFull" title="По ширине">☰</button>
+    </div><div class="grouplabel">Выравнивание</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnIndentDec" title="Уменьшить отступ">⇤⇥−</button>
+      <button class="ribbtn" id="btnIndentInc" title="Увеличить отступ (абзацный отступ)">⇤⇥+</button>
+      <select class="rsel" id="lineSel" title="Межстрочный интервал">
+        <option value="1">Одинарный</option><option value="1.15">1,15</option>
+        <option value="1.5" selected>1,5</option><option value="2">Двойной</option>
+      </select>
+    </div><div class="grouplabel">Абзац</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-cmd="insertUnorderedList" title="Маркированный список">•≡</button>
+      <button class="ribbtn" data-cmd="insertOrderedList" title="Нумерованный список">1≡</button>
+      <button class="ribbtn" id="btnBulletStyle" title="Вид маркера / нумерации">▾ Маркер</button>
+      <button class="ribbtn" id="btnFontDlg" title="Окно «Шрифт»">Шрифт…</button>
+      <button class="ribbtn" id="btnParaDlg" title="Окно «Абзац»">Абзац…</button>
+      <button class="ribbtn" id="btnFind" title="Поиск и замена (Ctrl+H)">🔍 Замена</button>
+      <button class="ribbtn" data-cmd="removeFormat" title="Очистить форматирование">⌫</button>
+    </div><div class="grouplabel">Инструменты</div></div>
+  </div>
+
+  <!-- Вставка -->
+  <div class="tabpane" data-pane="insert">
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnTable" title="Вставить таблицу (сетка или точный размер)">⊞ Таблица</button>
+      <button class="ribbtn" id="btnImgUrl" title="Картинка по ссылке">🖼 По ссылке</button>
+      <button class="ribbtn" id="btnImgFile" title="Картинка с компьютера">🖼 С компьютера</button>
+      <input type="file" id="imgFile" accept="image/*" hidden>
+    </div><div class="grouplabel">Таблицы и рисунки</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnLink" title="Гиперссылка">🔗 Ссылка</button>
+      <button class="ribbtn" id="btnFootnote" title="Вставить сноску">¹ Сноска</button>
+      <button class="ribbtn" id="btnTOC" title="Оглавление из заголовков">☰ Оглавление</button>
+    </div><div class="grouplabel">Ссылки и сноски</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnSym" title="Специальные символы">Ω Символы</button>
+      <button class="ribbtn" id="btnDate" title="Текущая дата и время">📅 Дата/время</button>
+      <button class="ribbtn" id="btnHR" title="Горизонтальная линия">― Линия</button>
+    </div><div class="grouplabel">Символы</div></div>
+  </div>
+
+  <!-- Макет -->
+  <div class="tabpane" data-pane="layout">
+    <div class="group"><div class="grouprow">
+      <select class="rsel" id="pageSize" title="Размер страницы">
+        <option value="a4" selected>A4 (210×297)</option><option value="letter">Letter</option><option value="a5">A5</option>
+      </select>
+      <select class="rsel" id="pageOrient" title="Ориентация">
+        <option value="portrait" selected>Книжная</option><option value="landscape">Альбомная</option>
+      </select>
+    </div><div class="grouplabel">Размер страницы</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnMargins" title="Поля страницы">▭ Поля…</button>
+      <button class="ribbtn" id="btnMarginsMet" title="Поля по методичке: левое 30, правое 15, верхнее и нижнее 20 мм">🎓 Поля по методичке</button>
+    </div><div class="grouplabel">Поля</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-cols="1" title="Одна колонка">▯</button>
+      <button class="ribbtn" data-cols="2" title="Две колонки">▯▯</button>
+      <button class="ribbtn" data-cols="3" title="Три колонки">▯▯▯</button>
+    </div><div class="grouplabel">Колонки</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn primary" id="btnMethod" title="Оформить по методичке: Times New Roman 14 пт, интервал 1,5, отступ 1,25 см, по ширине, заголовки без жирного">🎓 Оформить по методичке</button>
+    </div><div class="grouplabel">Быстрое оформление</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnZoomOut" title="Уменьшить масштаб">−</button>
+      <span class="hint" id="zoomVal">100%</span>
+      <button class="ribbtn" id="btnZoomIn" title="Увеличить масштаб">+</button>
+    </div><div class="grouplabel">Масштаб</div></div>
+  </div>
+
+  <!-- Формулы -->
+  <div class="tabpane" data-pane="formula">
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-f="frac" title="Дробь">a⁄b</button>
+      <button class="ribbtn" data-f="sqrt" title="Квадратный корень">√</button>
+      <button class="ribbtn" data-f="nroot" title="Корень n-й степени">ⁿ√</button>
+      <button class="ribbtn" data-f="pow" title="Степень">xⁿ</button>
+      <button class="ribbtn" data-f="sub" title="Индекс">xₙ</button>
+    </div><div class="grouplabel">Конструкции</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-f="sum" title="Сумма">∑</button>
+      <button class="ribbtn" data-f="int" title="Интеграл">∫</button>
+      <button class="ribbtn" data-f="prod" title="Произведение">∏</button>
+      <button class="ribbtn" data-f="lim" title="Предел">lim</button>
+    </div><div class="grouplabel">Большие операторы</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-f="plusminus" title="Плюс-минус">±</button>
+      <button class="ribbtn" data-f="neq" title="Не равно">≠</button>
+      <button class="ribbtn" data-f="le" title="Меньше или равно">≤</button>
+      <button class="ribbtn" data-f="ge" title="Больше или равно">≥</button>
+      <button class="ribbtn" data-f="arrow" title="Стрелка">→</button>
+      <button class="ribbtn" data-f="infty" title="Бесконечность">∞</button>
+    </div><div class="grouplabel">Знаки</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" data-f="alpha" title="Греческие буквы">Αα Βуквы…</button>
+      <button class="ribbtn" id="btnFormula" title="Вставить формулу: строка по центру + номер справа">∑ Формула (1)</button>
+    </div><div class="grouplabel">Формула</div></div>
+  </div>
+
+  <!-- Файл -->
+  <div class="tabpane" data-pane="file">
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnNew" title="Новый документ">✚ Новый</button>
+      <button class="ribbtn" id="btnOpen" title="Импорт: .docx, .doc, .html, .txt">📂 Импорт</button>
+      <input type="file" id="fileOpen" accept=".txt,.md,.html,.doc,.docx" hidden>
+    </div><div class="grouplabel">Документ</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnDoc" title="Скачать .doc (открывается в Word)">⬇ Word (.doc)</button>
+      <button class="ribbtn" id="btnHtml" title="Скачать .html">⬇ HTML</button>
+      <button class="ribbtn" id="btnTxt" title="Скачать .txt">⬇ TXT</button>
+    </div><div class="grouplabel">Экспорт</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnBackup" title="Сохранить резервную копию всех документов (JSON)">💾 Резервная копия</button>
+      <button class="ribbtn" id="btnRestore" title="Восстановить документы из копии">♻ Восстановить</button>
+      <input type="file" id="restoreFile" accept=".json" hidden>
+    </div><div class="grouplabel">Копии</div></div>
+    <div class="group"><div class="grouprow">
+      <button class="ribbtn" id="btnTmplLetter" title="Шаблон: деловое письмо">✉ Деловое письмо</button>
+      <button class="ribbtn" id="btnTmplResume" title="Шаблон: резюме">👤 Резюме</button>
+      <button class="ribbtn" id="btnTmplTodo" title="Шаблон: список задач">☑ Задачи</button>
+    </div><div class="grouplabel">Шаблоны</div></div>
+  </div>
+</div>
+
+<!-- ================= PAGE ================= -->
+<div class="pagewrap" id="pagewrap">
+  <div class="page a4" id="page">
+    <div class="page-inner" id="editor" contenteditable="true" spellcheck="true"></div>
+  </div>
+</div>
+
+<!-- ================= STATUS BAR ================= -->
+<div class="statusbar">
+  <span id="ver" title="Версия сборки редактора" style="color:var(--accent);font-weight:600;">v1.4</span>
+  <span id="statWords">Слов: 0</span>
+  <span id="statChars">Символов: 0</span>
+  <span id="statPages">Страниц: ~1</span>
+  <span style="margin-left:auto;"><span class="kbd">Ctrl</span>+<span class="kbd">S</span> — Word · <span class="kbd">Ctrl</span>+<span class="kbd">H</span> — замена</span>
+</div>
+
+<!-- ================= DOCS PANEL ================= -->
+<div class="overlay" id="overlay"></div>
+<div class="panel" id="docsPanel">
+  <header>📁 Мои документы
+    <div class="spacer"></div>
+    <button class="btn" id="btnNewDoc2">✚ Новый</button>
+    <button class="btn" id="btnClosePanel">✕</button>
+  </header>
+  <div style="padding:8px;"><input type="text" id="docSearch" placeholder="Поиск по названию…" style="width:100%;padding:7px 9px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);color:var(--text);"></div>
+  <div class="list" id="docList"></div>
+</div>
+
+<!-- ================= CONTEXT MENU ================= -->
+<div class="ctxmenu" id="ctxmenu"></div>
+
+<!-- ================= DIALOGS ================= -->
+<dialog id="dlg">
+  <h3 id="dlgTitle"></h3>
+  <div id="dlgBody"></div>
+  <div class="dlg-actions">
+    <button class="btn" id="dlgCancel">Отмена</button>
+    <button class="btn primary" id="dlgOk">ОК</button>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+
+<script>
+"use strict";
+/* ================= DOM ================= */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const editor=$('#editor'), page=$('#page'), titleInp=$('#docTitle'), saveHint=$('#saveHint');
+const LS_DOCS='mywordpro_docs', LS_META='mywordpro_meta', LS_THEME='mywordpro_theme';
+let docId=null, zoom=100;
+
+/* ================= Helpers ================= */
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function exec(cmd,val){editor.focus();document.execCommand(cmd,false,val);syncToolbar();queueSave();}
+function insertHTML(h){exec('insertHTML',h);}
+function selText(){const s=getSelection();return s.rangeCount?s.toString():'';}
+function saveBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);}
+function fileName(ext){return (titleInp.value.trim()||'document').replace(/[\\/:*?"<>|]/g,'_')+ext;}
+
+/* ================= Storage: many docs ================= */
+function loadDocs(){try{return JSON.parse(localStorage.getItem(LS_DOCS))||{};}catch(e){return{};}}
+function saveDocs(d){localStorage.setItem(LS_DOCS,JSON.stringify(d));}
+function meta(){try{return JSON.parse(localStorage.getItem(LS_META))||{};}catch(e){return{};}}
+function saveMeta(m){localStorage.setItem(LS_META,JSON.stringify(m));}
+function currentId(){const m=meta();if(m.current&&loadDocs()[m.current])return m.current;const ids=Object.keys(loadDocs());return ids[0]||null;}
+function newDoc(title,html){
+  const id='d'+Date.now()+Math.floor(Math.random()*1e4);
+  const d=loadDocs();
+  d[id]={title:title||'Документ без названия',html:html||'',updated:Date.now(),settings:defaultSettings()};
+  saveDocs(d);const m=meta();m.current=id;saveMeta(m);return id;
+}
+function defaultSettings(){return{size:'a4',orient:'portrait',margins:{t:20,r:15,b:20,l:20},cols:1};}
+let settings=defaultSettings();
+
+function openDoc(id){
+  const d=loadDocs()[id];if(!d)return;
+  docId=id;editor.innerHTML=d.html||'';titleInp.value=d.title;
+  settings=Object.assign(defaultSettings(),d.settings||{});
+  applySettings();const m=meta();m.current=id;saveMeta(m);
+  renderDocList();stats();saveHint.textContent='Открыто';
+}
+function queueSave(){
+  saveHint.textContent='Сохранение…';
+  clearTimeout(queueSave.t);
+  queueSave.t=setTimeout(()=>{
+    const d=loadDocs();
+    if(!docId)docId=newDoc(titleInp.value);
+    d[docId]={title:titleInp.value,html:editor.innerHTML,updated:Date.now(),settings};
+    saveDocs(d);saveHint.textContent='Сохранено '+new Date().toLocaleTimeString('ru-RU');
+    renderDocList();stats();
+  },400);
+}
+
+/* ================= Docs panel ================= */
+const panel=$('#docsPanel'),overlay=$('#overlay');
+function togglePanel(open){panel.classList.toggle('open',open);overlay.classList.toggle('show',open);if(open)renderDocList();}
+$('#btnDocs').onclick=()=>togglePanel(true);
+$('#logoBtn').onclick=()=>togglePanel(true);
+$('#btnClosePanel').onclick=()=>togglePanel(false);
+overlay.onclick=()=>togglePanel(false);
+$('#btnNewDoc2').onclick=()=>{const id=newDoc();openDoc(id);togglePanel(false);editor.focus();};
+$('#docSearch').oninput=renderDocList;
+function renderDocList(){
+  const q=($('#docSearch').value||'').toLowerCase();
+  const d=loadDocs();
+  const items=Object.entries(d).sort((a,b)=>b[1].updated-a[1].updated)
+    .filter(([,v])=>!q||v.title.toLowerCase().includes(q));
+  $('#docList').innerHTML=items.length?'':'<div class="hint" style="padding:12px;">Документов не найдено</div>';
+  items.forEach(([id,v])=>{
+    const el=document.createElement('div');
+    el.className='docitem'+(id===docId?' active':'');
+    el.innerHTML='<div class="t">'+esc(v.title)+'</div><div class="m">'+new Date(v.updated).toLocaleString('ru-RU')+'</div>'+
+      '<div class="acts"><button class="btn">✏ Переименовать</button><button class="btn">⬇ .doc</button><button class="btn danger">🗑</button></div>';
+    el.onclick=e=>{
+      const b=e.target.closest('button');
+      if(b){
+        e.stopPropagation();
+        if(b.textContent.includes('Переименовать')){const t=prompt('Новое название:',v.title);if(t){v.title=t;d[id]=v;saveDocs(d);if(id===docId)titleInp.value=t;renderDocList();}}
+        else if(b.textContent.includes('.doc')){const keep=docId;docId=id;titleInp.value=v.title;downloadDoc();docId=keep;titleInp.value=d[keep]?.title||'';}
+        else if(confirm('Удалить документ «'+v.title+'»?')){delete d[id];saveDocs(d);if(id===docId){const rest=Object.keys(d);openDoc(rest[0]||newDoc());}renderDocList();}
+        return;
+      }
+      openDoc(id);togglePanel(false);
+    };
+    $('#docList').appendChild(el);
+  });
+}
+
+/* ================= Stats ================= */
+function stats(){
+  const txt=editor.innerText.replace(/\u00a0/g,' ').trim();
+  const words=txt?txt.split(/\s+/).length:0;
+  $('#statWords').textContent='Слов: '+words;
+  $('#statChars').textContent='Символов: '+txt.length;
+  const h=editor.offsetHeight, perMM=3.7795*(zoom/100);
+  $('#statPages').textContent='Страниц: ~'+Math.max(1,Math.ceil(h/(297*perMM-((settings.margins.t+settings.margins.b)*perMM))));
+}
+editor.addEventListener('input',()=>{queueSave();});
+titleInp.addEventListener('input',queueSave);
+
+/* ================= Ribbon tabs ================= */
+$$('#tabs .tab').forEach(t=>t.onclick=()=>{
+  $$('#tabs .tab').forEach(x=>x.classList.toggle('active',x===t));
+  $$('.tabpane').forEach(p=>p.classList.toggle('active',p.dataset.pane===t.dataset.tab));
+});
+
+/* ================= Basic commands ================= */
+$$('[data-cmd]').forEach(b=>{
+  b.addEventListener('mousedown',e=>e.preventDefault());
+  b.onclick=()=>exec(b.dataset.cmd);
+});
+/* не давать кнопкам ленты красть фокус и выделение из редактора */
+$$('.ribbtn').forEach(b=>{if(b.tagName==='BUTTON')b.addEventListener('mousedown',e=>e.preventDefault());});
+$('#fontSel').onchange=e=>exec('fontName',e.target.value);
+$('#foreColor').oninput=e=>exec('foreColor',e.target.value);
+$('#hlColor').oninput=e=>exec('hiliteColor',e.target.value);
+$('#blockSel').onchange=e=>exec('formatBlock','<'+e.target.value+'>');
+
+/* Font size in POINTS: wrap selection in span with pt size */
+$('#fontPt').onchange=e=>{
+  const pt=Math.min(72,Math.max(6,parseFloat(e.target.value)||14));
+  editor.focus();
+  let s=getSelection();
+  if(s.rangeCount&&!s.isCollapsed){
+    const r=s.getRangeAt(0);
+    const span=document.createElement('span');
+    span.style.fontSize=pt+'pt';
+    try{r.surroundContents(span);}catch(err){
+      span.appendChild(r.extractContents());r.insertNode(span);
+    }
+    s.removeAllRanges();
+  }else{
+    document.execCommand('fontSize',false,'7');
+    $$('font[size="7"]').forEach(f=>{const sp=document.createElement('span');sp.style.fontSize=pt+'pt';sp.innerHTML=f.innerHTML;f.replaceWith(sp);});
+  }
+  queueSave();syncToolbar();
+};
+
+/* Line spacing */
+$('#lineSel').onchange=e=>{
+  editor.focus();
+  document.execCommand('lineHeight',false,e.target.value);
+  // fallback: apply via style on blocks
+  applyBlockStyle({lineHeight:e.target.value});
+  queueSave();
+};
+function applyBlockStyle(st){
+  const s=getSelection();if(!s.rangeCount)return;
+  let node=s.getRangeAt(0).commonAncestorContainer;
+  if(node.nodeType===3)node=node.parentNode;
+  const blocks=[];
+  if(node.closest&&node.closest('#editor'))blocks.push(...collectBlocks(node));
+  if(!blocks.length){
+    // whole editor fallback
+    blocks.push(...collectBlocks(editor));
+  }
+  blocks.forEach(b=>Object.assign(b.style,st));
+}
+function collectBlocks(root){
+  const set=new Set();
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  let n;const sel=getSelection();
+  while(n=walker.nextNode()){
+    if(!sel.containsNode(n,true))continue;
+    let el=n.parentElement;
+    while(el&&el!==editor&&!/^(P|H1|H2|H3|BLOCKQUOTE|PRE|LI|DIV)$/i.test(el.tagName))el=el.parentElement;
+    if(el&&el!==editor)set.add(el);
+  }
+  if(!set.size){ // no selection -> block at caret
+    let el=getSelection().anchorNode; if(el&&el.nodeType===3)el=el.parentElement;
+    while(el&&el!==editor&&!/^(P|H1|H2|H3|BLOCKQUOTE|PRE|LI|DIV)$/i.test(el.tagName))el=el.parentElement;
+    if(el&&el!==editor)set.add(el);
+  }
+  return [...set];
+}
+
+/* Indents */
+$('#btnIndentInc').onclick=()=>{editor.focus();if(!document.execCommand('indent'))applyBlockStyle({textIndent:'1.25cm'});queueSave();};
+$('#btnIndentDec').onclick=()=>{editor.focus();document.execCommand('outdent');applyBlockStyle({textIndent:'0'});queueSave();};
+
+/* Case change */
+$('#btnCase').onclick=()=>{
+  editor.focus();
+  const s=getSelection();if(!s.rangeCount||s.isCollapsed)return alert('Выделите текст для смены регистра.');
+  const mode=(prompt('Регистр: 1 — ВСЕ ПРОПИСНЫЕ, 2 — все строчные, 3 — С Заглавной Буквы','1')||'').trim();
+  const r=s.getRangeAt(0);
+  const txt=r.toString();
+  let out=txt;
+  if(mode==='1')out=txt.toUpperCase();
+  else if(mode==='2')out=txt.toLowerCase();
+  else if(mode==='3')out=txt.toLowerCase().replace(/(^|[\s\(\)"«-])\S/g,m=>m.toUpperCase());
+  else return;
+  r.deleteContents();r.insertNode(document.createTextNode(out));
+  queueSave();
+};
+
+/* Format painter */
+let paintFmt=null;
+$('#btnFormatPaint').onclick=()=>{
+  editor.focus();
+  const s=getSelection();if(!s.rangeCount||s.isCollapsed)return alert('Сначала выделите текст с нужным форматом.');
+  const el=s.getRangeAt(0).commonAncestorContainer;
+  const src=(el.nodeType===3?el.parentElement:el);
+  paintFmt={
+    bold:src.closest?!!src.closest('b,strong'):false,
+    italic:src.closest?!!src.closest('i,em'):false,
+    underline:src.closest?!!src.closest('u'):false,
+    strike:src.closest?!!src.closest('s,strike'):false,
+    color:getComputedStyle(src).color, font:getComputedStyle(src).fontFamily,
+    size:getComputedStyle(src).fontSize
+  };
+  $('#btnFormatPaint').classList.add('on');
+};
+editor.addEventListener('mouseup',()=>{
+  if(!paintFmt)return;
+  const s=getSelection();if(!s.rangeCount||s.isCollapsed)return;
+  const r=s.getRangeAt(0);
+  const span=document.createElement('span');
+  span.style.cssText='color:'+paintFmt.color+';font-family:'+paintFmt.font+';font-size:'+paintFmt.size+';';
+  if(paintFmt.bold)span.style.fontWeight='bold';
+  if(paintFmt.italic)span.style.fontStyle='italic';
+  span.style.textDecoration=[paintFmt.underline?'underline':'',paintFmt.strike?'line-through':''].filter(Boolean).join(' ');
+  try{r.surroundContents(span);}catch(e){span.appendChild(r.extractContents());r.insertNode(span);}
+  paintFmt=null;$('#btnFormatPaint').classList.remove('on');queueSave();
+});
+
+/* Undo/redo */
+$('#btnUndo').onclick=()=>exec('undo');
+$('#btnRedo').onclick=()=>exec('redo');
+
+/* ================= Toolbar sync ================= */
+function syncToolbar(){
+  ['bold','italic','underline','strikeThrough','justifyLeft','justifyCenter','justifyRight','justifyFull','insertUnorderedList','insertOrderedList'].forEach(c=>{
+    let on=false;try{on=document.queryCommandState(c);}catch(e){}
+    $$('[data-cmd="'+c+'"]').forEach(b=>b.classList.toggle('on',on));
+  });
+  try{
+    const b=document.queryCommandValue('formatBlock').toLowerCase().replace(/[<>]/g,'');
+    $('#blockSel').value=['p','h1','h2','h3','blockquote','pre'].includes(b)?b:'p';
+  }catch(e){}
+}
+document.addEventListener('selectionchange',()=>{if(document.activeElement===editor)syncToolbar();});
+</script>
+
+<script>
+/* ================= Dialog helper ================= */
+(function(){
+const dlg=$('#dlg'),dlgTitle=$('#dlgTitle'),dlgBody=$('#dlgBody');let dlgOk=null,savedRange=null;
+window.openDlg=function(title,fieldsHtml,onOk,okText){
+  dlgTitle.textContent=title;dlgBody.innerHTML=fieldsHtml;dlgOk=onOk||null;
+  const s=getSelection();
+  savedRange=(document.activeElement===editor&&s.rangeCount)?s.getRangeAt(0).cloneRange():null;
+  $('#dlgOk').textContent=okText||'ОК';dlg.showModal();
+  const f=dlgBody.querySelector('input,select,textarea');if(f)f.focus();
+};
+function restoreSel(){
+  if(!savedRange)return;
+  const s=getSelection();s.removeAllRanges();s.addRange(savedRange);savedRange=null;
+  editor.focus();
+}
+window.dlgVal=function(id){const el=document.getElementById('f_'+id);return el?el.value:'';};
+$('#dlgOk').onclick=()=>{const f=dlgOk;dlgOk=null;dlg.close();restoreSel();if(f)f();};
+$('#dlgCancel').onclick=()=>{dlgOk=null;savedRange=null;dlg.close();};
+})();
+
+/* ================= Find & replace ================= */
+$('#btnFind').onclick=openFind;
+function openFind(){
+  openDlg('Поиск и замена',
+    '<label>Найти</label><input id="f_find"><label>Заменить на</label><input id="f_repl">'+
+    '<div class="dlg-actions" style="margin-top:12px;justify-content:flex-start;">'+
+    '<button class="btn" id="fr_next">Найти далее</button>'+
+    '<button class="btn" id="fr_rep">Заменить</button>'+
+    '<button class="btn primary" id="fr_all">Заменить все</button></div>',
+    null,'Закрыть');
+  $('#dlgOk').style.display='none';
+  $('#fr_next').onclick=()=>findNext(dlgVal('find'),false);
+  $('#fr_rep').onclick=()=>findNext(dlgVal('find'),true,dlgVal('repl'));
+  $('#fr_all').onclick=()=>{
+    const f=dlgVal('find'),r=dlgVal('repl');if(!f)return;
+    const html=editor.innerHTML;
+    const parts=html.split(esc(f));
+    if(parts.length>1){editor.innerHTML=parts.join(esc(r));queueSave();alert('Заменено: '+(parts.length-1));}
+    else alert('Ничего не найдено.');
+  };
+  $('#dlg').addEventListener('close',()=>{$('#dlgOk').style.display='';},{once:true});
+}
+function findNext(q,replace,repl){
+  if(!q)return;
+  editor.focus();
+  const s=getSelection();s.removeAllRanges();
+  const finder=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+  let n,found=null,startOffset=0;
+  while(n=finder.nextNode()){
+    const idx=n.data.toLowerCase().indexOf(q.toLowerCase());
+    if(idx>-1){found=n;startOffset=idx;break;}
+  }
+  if(!found){alert('Ничего не найдено.');return;}
+  const r=document.createRange();
+  r.setStart(found,startOffset);r.setEnd(found,startOffset+q.length);
+  s.addRange(r);found.parentElement.scrollIntoView({block:'center'});
+  if(replace){r.deleteContents();r.insertNode(document.createTextNode(repl||''));queueSave();}
+}
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='h'){e.preventDefault();openFind();}
+});
+
+/* ================= Font dialog ================= */
+$('#btnFontDlg').onclick=()=>{
+  openDlg('Шрифт',
+    '<label>Шрифт</label><select id="f_font">'+
+    ['Times New Roman','Arial','Calibri','Georgia','Courier New','Verdana','Segoe UI'].map(f=>'<option>'+f+'</option>').join('')+'</select>'+
+    '<label>Размер, пт</label><input id="f_size" type="number" value="14" min="6" max="72">'+
+    '<label><input type="checkbox" id="f_b"> Полужирный</label>'+
+    '<label><input type="checkbox" id="f_i"> Курсив</label>'+
+    '<label><input type="checkbox" id="f_u"> Подчёркнутый</label>'+
+    '<label>Цвет</label><input id="f_color" type="color" value="#1c2430">',
+    ()=>{
+      editor.focus();
+      const s=getSelection();if(!s.rangeCount||s.isCollapsed)return alert('Выделите текст.');
+      const r=s.getRangeAt(0);
+      const sp=document.createElement('span');
+      sp.style.fontFamily=dlgVal('font');sp.style.fontSize=dlgVal('size')+'pt';sp.style.color=dlgVal('color');
+      if(document.getElementById('f_b').checked)sp.style.fontWeight='bold';
+      if(document.getElementById('f_i').checked)sp.style.fontStyle='italic';
+      if(document.getElementById('f_u').checked)sp.style.textDecoration='underline';
+      try{r.surroundContents(sp);}catch(e){sp.appendChild(r.extractContents());r.insertNode(sp);}
+      queueSave();
+    });
+};
+
+/* ================= Paragraph dialog ================= */
+$('#btnParaDlg').onclick=()=>{
+  openDlg('Абзац',
+    '<label>Выравнивание</label><select id="f_align"><option value="left">Слева</option><option value="center">По центру</option><option value="right">Справа</option><option value="justify">По ширине</option></select>'+
+    '<label>Отступ первой строки, см</label><input id="f_indent" type="number" step="0.25" value="0" min="0" max="10">'+
+    '<label>Интервал перед абзацем, пт</label><input id="f_before" type="number" value="0" min="0" max="72">'+
+    '<label>Интервал после абзаца, пт</label><input id="f_after" type="number" value="0" min="0" max="72">'+
+    '<label>Межстрочный интервал</label><select id="f_line"><option value="1">Одинарный</option><option value="1.5">1,5</option><option value="2">Двойной</option><option value="3">Тройной</option></select>',
+    ()=>{
+      editor.focus();
+      document.execCommand('justify'+dlgVal('align').charAt(0).toUpperCase()+dlgVal('align').slice(1));
+      applyBlockStyle({
+        textIndent:dlgVal('indent')?dlgVal('indent')+'cm':'0',
+        marginTop:dlgVal('before')?dlgVal('before')+'pt':'0',
+        marginBottom:dlgVal('after')?dlgVal('after')+'pt':'0',
+        lineHeight:dlgVal('line')
+      });
+      queueSave();
+    });
+};
+
+/* ================= Lists: markers ================= */
+function findListAtCaret(){
+  let el=getSelection().anchorNode;if(el&&el.nodeType===3)el=el.parentElement;
+  const li=el&&el.closest?el.closest('li'):null;
+  return li?li.closest('ul,ol'):null;
+}
+$('#btnBulletStyle').onclick=()=>{
+  const targetList=findListAtCaret();
+  if(!targetList)return alert('Сначала создайте список (кнопки •≡ или 1≡) и поставьте курсор внутрь него.');
+  const isUL=targetList.tagName==='UL';
+  const opts=isUL
+    ?'<option value="disc">• Точка</option><option value="circle">◦ Кружок</option><option value="square">▪ Квадрат</option><option value="dash">— Тире</option><option value="check">☑ Галочка</option><option value="arrow">➢ Стрелка</option><option value="custom">Свой символ…</option>'
+    :'<option value="decimal">1. 1. 1.</option><option value="ol-paren">1) 2) 3)</option><option value="ol-alpha">а) б) в)</option><option value="ol-ALPHA">А) Б) В)</option>';
+  openDlg(isUL?'Вид маркера':'Вид нумерации',
+    '<select id="f_style">'+opts+'</select><div id="f_customWrap" style="display:none;"><label>Свой символ маркера</label><input id="f_custom" maxlength="3" placeholder="например ★"></div>',
+    ()=>{
+      let v=dlgVal('style');
+      if(v==='custom'){
+        const c=dlgVal('custom')||'★';
+        applyListClassTo(targetList,'ul-custom');
+        const st=document.createElement('style');
+        st.textContent='#editor ul.ul-custom>li::before{content:'+JSON.stringify(c+' ')+'!important}';
+        document.head.appendChild(st);
+        queueSave();return;
+      }
+      const MAP={disc:'',circle:'ul-circle',square:'ul-square',dash:'ul-dash',check:'ul-check',arrow:'ul-arrow'};
+      applyListClassTo(targetList,(v in MAP)?MAP[v]:v);
+      queueSave();
+    });
+  document.getElementById('f_style').onchange=e=>{
+    document.getElementById('f_customWrap').style.display=e.target.value==='custom'?'':'none';
+  };
+};
+function applyListClassTo(lst,cls){
+  if(!lst)return;
+  ['ul-dash','ul-check','ul-arrow','ul-custom','ul-circle','ul-square','ol-paren','ol-alpha','ol-ALPHA',
+   'dash','check','circle','square','arrow','disc'].forEach(c=>lst.classList.remove(c));
+  if(cls)lst.classList.add(cls);
+}
+
+/* ================= Tables ================= */
+$('#btnTable').onclick=()=>{
+  let grid='<div style="display:grid;grid-template-columns:repeat(8,22px);gap:3px;margin:6px 0;" id="tblGrid">';
+  for(let i=0;i<64;i++)grid+='<div data-i="'+i+'" style="width:22px;height:22px;border:1px solid var(--border);border-radius:3px;cursor:pointer;"></div>';
+  grid+='</div><div class="hint" id="tblHint">Наведите курсор — выберите сеткой, или укажите точно:</div>'+
+    '<label>Строк</label><input id="f_rows" type="number" value="3" min="1" max="50"><label>Столбцов</label><input id="f_cols" type="number" value="3" min="1" max="20">';
+  openDlg('Вставить таблицу',grid,()=>makeTable(+dlgVal('rows')||2,+dlgVal('cols')||2));
+  let rows=0,cols=0;
+  const cells=$$('#tblGrid div');
+  cells.forEach(c=>{
+    c.onmouseenter=()=>{
+      const i=+c.dataset.i;rows=Math.floor(i/8)+1;cols=i%8+1;
+      cells.forEach(x=>{const j=+x.dataset.i;x.style.background=(Math.floor(j/8)<rows&&j%8<cols)?'var(--accent)':'transparent';});
+      $('#tblHint').textContent=rows+' × '+cols+' — кликните, чтобы вставить';
+    };
+    c.onclick=()=>{$('#dlg').close();makeTable(rows,cols);};
+  });
+};
+function makeTable(r,c){
+  let h='<table><tbody>';
+  for(let i=0;i<r;i++){h+='<tr>';for(let j=0;j<c;j++)h+='<td>&nbsp;</td>';h+='</tr>';}
+  h+='</tbody></table><p></p>';
+  insertHTML(h);queueSave();
+}
+function cellContextMenu(menu,e){
+  const td=e.target.closest('td,th');if(!td)return false;
+  const tr=td.parentElement,tbl=td.closest('table');
+  const rows=[...tbl.rows],ri=tr.rowIndex,ci=td.cellIndex;
+  menu.push(
+    ['➕ Строку ниже',()=>{const n=tr.cloneNode(false);[...tr.cells].forEach(()=>n.appendChild(document.createElement('td')));tr.after(n);queueSave();}],
+    ['➕ Строку выше',()=>{const n=tr.cloneNode(false);[...tr.cells].forEach(()=>n.appendChild(document.createElement('td')));tr.before(n);queueSave();}],
+    ['➕ Столбец справа',()=>{rows.forEach(row=>row.insertCell(Math.min(ci+1,row.cells.length)));queueSave();}],
+    ['➕ Столбец слева',()=>{rows.forEach(row=>row.insertCell(ci));queueSave();}],
+    ['🗑 Удалить строку',()=>{tr.remove();queueSave();}],
+    ['🗑 Удалить столбец',()=>{rows.forEach(row=>{if(row.cells[ci])row.deleteCell(ci);});queueSave();}],
+    ['⧉ Объединить ячейки',()=>{
+      const s=getSelection();if(!s.rangeCount)return;
+      const cells=[...tbl.querySelectorAll('td,th')].filter(c=>s.containsNode(c,true));
+      if(cells.length<2)return alert('Выделите несколько ячеек.');
+      const rs=Math.min(...cells.map(c=>c.parentElement.rowIndex));
+      const cs=Math.min(...cells.map(c=>c.cellIndex));
+      document.execCommand('mergeCells');queueSave();
+    }],
+    ['⫘ Разделить ячейку',()=>{document.execCommand('splitCell');queueSave();}],
+    ['🎨 Заливка ячейки…',()=>{
+      openDlg('Заливка ячейки','<input id="f_fill" type="color" value="#dbeafe">',()=>{
+        const s=getSelection();if(!s.rangeCount)return;
+        [...tbl.querySelectorAll('td,th')].filter(c=>s.containsNode(c,true)).forEach(c=>c.style.background=dlgVal('fill'));
+        queueSave();
+      });
+    }],
+    ['↕ По вертикали: верх',()=>td.style.verticalAlign='top'],
+    ['↕ По вертикали: центр',()=>td.style.verticalAlign='middle'],
+    ['↕ По вертикали: низ',()=>td.style.verticalAlign='bottom']
+  );
+  return true;
+}
+</script>
+
+<script>
+/* ================= Images ================= */
+$('#btnImgUrl').onclick=()=>{
+  openDlg('Картинка по ссылке',
+    '<label>URL</label><input id="f_url" type="url" placeholder="https://…"><label>Ширина (px или %, необязательно)</label><input id="f_w" placeholder="например 300 или 50%"><label>Выравнивание</label><select id="f_align"><option value="">по тексту</option><option value="margin:0 auto;display:block;">по центру</option><option value="float:left;margin:0 10px 6px 0;">слева обтеканием</option><option value="float:right;margin:0 0 6px 10px;">справа обтеканием</option></select>',
+    ()=>{
+      const w=dlgVal('w');
+      insertHTML('<img src="'+esc(dlgVal('url'))+'" style="'+(w?(isNaN(w)?'width:'+esc(w)+';':'width:'+esc(w)+'px;'):'')+esc(dlgVal('align'))+'" alt="">');
+    });
+};
+$('#btnImgFile').onclick=()=>$('#imgFile').click();
+$('#imgFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>insertHTML('<img src="'+r.result+'" style="max-width:100%;" alt="">');
+  r.readAsDataURL(f);e.target.value='';
+};
+function imageMenu(menu,e){
+  const img=e.target.closest('img');if(!img)return false;
+  menu.push(
+    ['↔ Ширина…',()=>{
+      openDlg('Ширина рисунка','<label>Ширина (px или %)</label><input id="f_w" value="'+(img.style.width||'')+'">',()=>{
+        const w=dlgVal('w');img.style.width=isNaN(w)?w:w+'px';queueSave();
+      });
+    }],
+    ['↔ По центру',()=>{img.style.display='block';img.style.margin='0 auto';img.style.float='';queueSave();}],
+    ['↔ Слева (обтекание)',()=>{img.style.float='left';img.style.margin='0 10px 6px 0';img.style.display='';queueSave();}],
+    ['↔ Справа (обтекание)',()=>{img.style.float='right';img.style.margin='0 0 6px 10px';img.style.display='';queueSave();}],
+    ['🗑 Удалить рисунок',()=>{img.remove();queueSave();}]
+  );
+  return true;
+}
+
+/* ================= Link ================= */
+$('#btnLink').onclick=()=>{
+  const sel=selText();
+  openDlg('Гиперссылка',
+    '<label>Адрес (URL)</label><input id="f_url" type="url" value="https://"><label>Текст</label><input id="f_text" value="'+esc(sel)+'">',
+    ()=>insertHTML('<a href="'+esc(dlgVal('url'))+'">'+esc(dlgVal('text')||dlgVal('url'))+'</a>&nbsp;'));
+};
+
+/* ================= Footnotes ================= */
+let fnCounter=0;
+$('#btnFootnote').onclick=()=>{
+  fnCounter++;
+  const n=fnCounter;
+  const note=prompt('Текст сноски №'+n+':');if(note===null)return;
+  insertHTML('<sup style="color:#1a56cc;">['+n+']</sup>');
+  let area=editor.querySelector('.fnote');
+  if(!area){area=document.createElement('div');area.className='fnote';area.innerHTML='<b>Сноски:</b> ';editor.appendChild(area);}
+  area.innerHTML+='<div><sup>['+n+']</sup> '+esc(note)+'</div>';
+  queueSave();
+};
+
+/* ================= TOC ================= */
+$('#btnTOC').onclick=()=>{
+  const hs=[...editor.querySelectorAll('h1,h2,h3')];
+  if(!hs.length)return alert('В документе нет заголовков (Заголовок 1–3).');
+  let h='<div style="text-align:center;font-weight:bold;">ОГЛАВЛЕНИЕ</div><br>';
+  hs.forEach((el,i)=>{
+    if(!el.id)el.id='toc_'+i;
+    const ind=(el.tagName==='H1'?'':el.tagName==='H2'?'&nbsp;&nbsp;&nbsp;':'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+    h+='<div>'+ind+'<a href="#'+el.id+'">'+esc(el.textContent)+'</a></div>';
+  });
+  insertHTML(h+'<p></p>');
+};
+
+/* ================= Symbols & date ================= */
+const SYMS='±×÷√∑∫∏∞≈≠≤≥→←↔⇒∈∉⊂∪∩∂∇°′″µΩπαβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ©®™§¶†‡•…—–«»„“”‘’′ €₽£¥₴№✓✗★☆♦♥♠♣☀☁☂⚑⚐';
+$('#btnSym').onclick=()=>{
+  openDlg('Специальные символы','<div class="symgrid">'+[...SYMS].map(c=>'<button type="button" data-s="'+esc(c)+'">'+esc(c)+'</button>').join('')+'</div>',null,'Закрыть');
+  $$('#dlgBody .symgrid button').forEach(b=>b.onclick=()=>{insertHTML(esc(b.dataset.s));});
+};
+$('#btnDate').onclick=()=>{
+  const d=new Date();
+  insertHTML(esc(d.toLocaleDateString('ru-RU'))+' '+esc(d.toLocaleTimeString('ru-RU').slice(0,5)));
+};
+$('#btnHR').onclick=()=>insertHTML('<hr style="border:none;border-top:1px solid #999;margin:10px 0;">');
+
+/* ================= Formulas ================= */
+const FMAP={
+  frac:['⁄','Дробь: вставьте числитель, затем ⁄, затем знаменатель'],
+  sqrt:['√','Корень: после √ добавьте выражение, например √(x²+1)'],
+  nroot:['ⁿ√','Корень n-й степени'],
+  pow:['ⁿ','Степень: вставьте основание, затем ⁿ-ый показатель'],
+  sub:['ₙ','Индекс: вставьте символ, затем индекс'],
+  sum:['∑','Сумма: ∑ᵢ₌₁ⁿ'],
+  int:['∫','Интеграл: ∫₀^∞'],
+  prod:['∏','Произведение'],
+  lim:['lim','Предел: lim x→∞'],
+  plusminus:['±','Плюс-минус'],neq:['≠','Не равно'],le:['≤','≤'],ge:['≥','≥'],arrow:['→','Стрелка'],infty:['∞','Бесконечность']
+};
+$$('[data-f]').forEach(b=>b.onclick=()=>{
+  const v=FMAP[b.dataset.f];if(!v)return;
+  if(b.dataset.f==='alpha'){
+    const g='αβγδεζηθικλμνξοπρστυφχψωΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
+    openDlg('Греческие буквы','<div class="symgrid">'+[...g].map(c=>'<button type="button" data-s="'+c+'">'+c+'</button>').join('')+'</div>',null,'Закрыть');
+    $$('#dlgBody .symgrid button').forEach(x=>x.onclick=()=>{insertHTML(x.dataset.s);});
+    return;
+  }
+  insertHTML(esc(v[0]));
+});
+let formulaN=0;
+$('#btnFormula').onclick=()=>{
+  formulaN++;
+  openDlg('Формула №'+formulaN,
+    '<label>Формула (Unicode: xⁿ, √, ∑, ∫…)</label><textarea class="wide" id="f_formula" rows="3" placeholder="E = mc²"></textarea>',
+    ()=>{
+      const f=dlgVal('formula')||'…';
+      insertHTML('<div class="formula"><span>'+esc(f)+'</span><span class="fnum">('+formulaN+')</span></div><p></p>');
+    });
+};
+
+/* ================= Page layout ================= */
+$('#pageSize').onchange=applySettings;
+$('#pageOrient').onchange=applySettings;
+$$('[data-cols]').forEach(b=>b.onclick=()=>{settings.cols=+b.dataset.cols;applySettings();queueSave();});
+function applySettings(){
+  const s=settings;
+  page.className='page '+s.size+(s.orient==='landscape'?' landscape':'');
+  page.style.setProperty('--pt',s.margins.t+'mm');page.style.setProperty('--pr',s.margins.r+'mm');
+  page.style.setProperty('--pb',s.margins.b+'mm');page.style.setProperty('--pl',s.margins.l+'mm');
+  editor.classList.toggle('cols2',s.cols===2);editor.classList.toggle('cols3',s.cols===3);
+  $('#pageSize').value=s.size;$('#pageOrient').value=s.orient;
+  $$('[data-cols]').forEach(b=>b.classList.toggle('on',+b.dataset.cols===s.cols));
+  const sizeMap={a4:'210mm 297mm',letter:'216mm 279mm',a5:'148mm 210mm'};
+  let sz=sizeMap[s.size];if(s.orient==='landscape')sz=sz.split(' ').reverse().join(' ');
+  let st=document.getElementById('pageStyle');
+  if(!st){st=document.createElement('style');st.id='pageStyle';document.head.appendChild(st);}
+  st.textContent='@page{size:'+sz+';margin:'+s.margins.t+'mm '+s.margins.r+'mm '+s.margins.b+'mm '+s.margins.l+'mm;}';
+  stats();
+}
+$('#btnMargins').onclick=()=>{
+  const m=settings.margins;
+  openDlg('Поля страницы (мм)',
+    '<label>Верхнее</label><input id="f_t" type="number" value="'+m.t+'"><label>Правое</label><input id="f_r" type="number" value="'+m.r+'"><label>Нижнее</label><input id="f_b" type="number" value="'+m.b+'"><label>Левое</label><input id="f_l" type="number" value="'+m.l+'">',
+    ()=>{settings.margins={t:+dlgVal('t')||20,r:+dlgVal('r')||15,b:+dlgVal('b')||20,l:+dlgVal('l')||20};applySettings();queueSave();});
+};
+$('#btnMarginsMet').onclick=()=>{settings.margins={t:20,r:15,b:20,l:30};applySettings();queueSave();};
+
+/* Методичка: Times New Roman 14, интервал 1,5, отступ 1,25 см, по ширине, заголовки без жирного */
+$('#btnMethod').onclick=()=>{
+  editor.style.fontFamily='"Times New Roman",Georgia,serif';
+  editor.style.fontSize='14pt';editor.style.lineHeight='1.5';
+  document.execCommand('justifyFull');
+  applyBlockStyle({lineHeight:'1.5',textIndent:'1.25cm',textAlign:'justify',marginTop:'0',marginBottom:'0'});
+  [...editor.querySelectorAll('h1,h2,h3')].forEach(h=>{h.style.fontWeight='normal';h.style.textIndent='0';});
+  [...editor.querySelectorAll('p')].forEach(p=>{if(!p.closest('.fnote'))p.style.textIndent='1.25cm';});
+  settings.margins={t:20,r:15,b:20,l:30};applySettings();
+  $('#lineSel').value='1.5';$('#fontPt').value=14;
+  queueSave();
+};
+
+/* Zoom */
+function setZoom(z){zoom=Math.min(200,Math.max(50,z));page.style.zoom=zoom/100;$('#zoomVal').textContent=zoom+'%';stats();}
+$('#btnZoomIn').onclick=()=>setZoom(zoom+10);
+$('#btnZoomOut').onclick=()=>setZoom(zoom-10);
+
+/* ================= Print ================= */
+$('#btnPrint').onclick=()=>window.print();
+document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='p'){e.preventDefault();window.print();}});
+</script>
+
+<script>
+/* ================= Export ================= */
+function docHtml(){
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+esc(titleInp.value)+'</title>'+
+  '<style>body{font-family:"Times New Roman",serif;font-size:14pt;line-height:1.5;}h1{font-size:20pt;}h2{font-size:16pt;}h3{font-size:14pt;}table{border-collapse:collapse;}td,th{border:1px solid #777;padding:4px 8px;}img{max-width:100%;}blockquote{border-left:3px solid #999;padding-left:12px;}'+
+  'ul.ul-dash,ul.ul-check,ul.ul-arrow,ul.ul-custom{list-style:none;}ul.ul-dash>li::before{content:"— ";}ul.ul-check>li::before{content:"☑ ";}ul.ul-arrow>li::before{content:"➢ ";}ul.ul-circle{list-style-type:circle;}ul.ul-square{list-style-type:square;}ol.ol-paren{list-style:none;counter-reset:oli;}ol.ol-paren>li::before{counter-increment:oli;content:counter(oli) ") ";}</style>'+
+  '</head><body>'+editor.innerHTML+'</body></html>';
+}
+function downloadDoc(){saveBlob(new Blob(['﻿'+docHtml()],{type:'application/msword'}),fileName('.doc'));}
+$('#btnDoc').onclick=downloadDoc;
+$('#btnHtml').onclick=()=>saveBlob(new Blob([docHtml()],{type:'text/html;charset=utf-8'}),fileName('.html'));
+$('#btnTxt').onclick=()=>saveBlob(new Blob([editor.innerText],{type:'text/plain;charset=utf-8'}),fileName('.txt'));
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();downloadDoc();}
+});
+
+/* ================= Import ================= */
+$('#btnOpen').onclick=()=>$('#fileOpen').click();
+$('#btnNew').onclick=()=>{if(confirm('Создать новый документ? Текущий сохранён в списке документов.')){newDoc();openDoc(currentId());editor.focus();}};
+$('#fileOpen').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const ext=f.name.split('.').pop().toLowerCase();
+  if(ext==='docx'){
+    if(typeof mammoth==='undefined'){alert('Импорт .docx требует интернета (библиотека загружается с CDN).\nОффлайн доступны: .doc, .html, .txt');return;}
+    mammoth.convertToHtml({arrayBuffer:f.arrayBuffer?f.arrayBuffer():f})
+      .then(r=>{newDoc(f.name.replace(/\.docx$/i,''),r.value);openDoc(currentId());})
+      .catch(()=>alert('Не удалось прочитать .docx'));
+  }else if(ext==='doc'){
+    const r=new FileReader();
+    r.onload=()=>{newDoc(f.name.replace(/\.doc$/i,''),r.result);openDoc(currentId());};
+    r.readAsText(f,'utf-8'); // .doc в HTML-формате (Word «Веб-страница»)
+  }else if(ext==='html'||ext==='htm'){
+    const r=new FileReader();
+    r.onload=()=>{
+      const doc=new DOMParser().parseFromString(r.result,'text/html');
+      newDoc(f.name.replace(/\.html?$/i,''),doc.body.innerHTML);openDoc(currentId());
+    };
+    r.readAsText(f,'utf-8');
+  }else{
+    const r=new FileReader();
+    r.onload=()=>{newDoc(f.name.replace(/\.\w+$/,''),'<p>'+esc(r.result).replace(/\n/g,'<br>')+'</p>');openDoc(currentId());};
+    r.readAsText(f,'utf-8');
+  }
+  e.target.value='';
+};
+
+/* ================= Backup / restore ================= */
+$('#btnBackup').onclick=()=>{
+  const data={app:'myword-pro',version:1,exported:new Date().toISOString(),docs:loadDocs()};
+  saveBlob(new Blob([JSON.stringify(data)],{type:'application/json'}),'myword-backup-'+new Date().toISOString().slice(0,10)+'.json');
+};
+$('#btnRestore').onclick=()=>$('#restoreFile').click();
+$('#restoreFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const data=JSON.parse(r.result);
+      if(!data.docs)throw 0;
+      if(!confirm('Восстановить '+Object.keys(data.docs).length+' документов? Текущие документы будут дополнены (совпадающие перезаписаны).'))return;
+      const d=loadDocs();Object.assign(d,data.docs);saveDocs(d);
+      openDoc(Object.keys(data.docs)[0]);renderDocList();alert('Восстановлено.');
+    }catch(err){alert('Файл не похож на резервную копию МойWord.');}
+  };
+  r.readAsText(f,'utf-8');e.target.value='';
+};
+
+/* ================= Templates ================= */
+$('#btnTmplLetter').onclick=()=>{
+  const d=new Date().toLocaleDateString('ru-RU');
+  newDoc('Деловое письмо','<p style="text-align:right;">'+d+'</p><p>&nbsp;</p><p><b>Кому:</b> (должность, ФИО адресата)</p><p><b>От:</b> (должность, ФИО отправителя)</p><p><b>Тема:</b> (тема письма)</p><p>&nbsp;</p><p style="text-indent:1.25cm;text-align:justify;">Уважаемый(ая) …! Текст письма…</p><p style="text-indent:1.25cm;text-align:justify;">&nbsp;</p><p style="text-indent:1.25cm;text-align:justify;">С уважением, (подпись)</p>');
+  openDoc(currentId());
+};
+$('#btnTmplResume').onclick=()=>{
+  newDoc('Резюме','<h1 style="text-align:center;">Фамилия Имя Отчество</h1><p style="text-align:center;">Телефон · E-mail · Город</p><h2>Опыт работы</h2><p><b>Должность</b> — Компания (годы)</p><ul><li>Достижение 1</li><li>Достижение 2</li></ul><h2>Образование</h2><p>Учебное заведение, специальность, годы</p><h2>Навыки</h2><ul><li>Навык 1</li><li>Навык 2</li></ul><h2>О себе</h2><p>Краткое описание…</p>');
+  openDoc(currentId());
+};
+$('#btnTmplTodo').onclick=()=>{
+  newDoc('Список задач','<h1>Список задач — '+new Date().toLocaleDateString('ru-RU')+'</h1><ul class="ul-check"><li>Задача 1</li><li>Задача 2</li><li>Задача 3</li></ul>');
+  openDoc(currentId());
+};
+
+/* ================= Context menu ================= */
+const ctx=$('#ctxmenu');
+page.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  const menu=[];
+  if(cellContextMenu(menu,e)||imageMenu(menu,e)){
+    showCtx(e.clientX,e.clientY,menu);return;
+  }
+  showCtx(e.clientX,e.clientY,[
+    ['✂ Вырезать',()=>exec('cut')],['📋 Копировать',()=>exec('copy')],
+    ['📄 Вставить',()=>navigator.clipboard.readText().then(t=>insertHTML(esc(t))).catch(()=>alert('Браузер запретил вставку — используйте Ctrl+V'))],
+    null,
+    ['<b>Ж</b> Полужирный',()=>exec('bold')],['<i>К</i> Курсив',()=>exec('italic')],['<u>Ч</u> Подчёркнутый',()=>exec('underline')],
+    null,
+    ['• Маркированный список',()=>exec('insertUnorderedList')],['1. Нумерованный список',()=>exec('insertOrderedList')],
+    ['⊞ Вставить таблицу…',()=>$('#btnTable').click()],
+    ['🔗 Ссылка…',()=>$('#btnLink').click()],['¹ Сноска',()=>$('#btnFootnote').click()],
+    null,
+    ['🎨 Заливка фона абзаца…',()=>{
+      openDlg('Заливка абзаца','<input id="f_bg" type="color" value="#dbeafe">',()=>{applyBlockStyle({background:dlgVal('bg')});queueSave();});
+    }],
+    ['⌫ Очистить форматирование',()=>exec('removeFormat')]
+  ]);
+});
+function showCtx(x,y,items){
+  ctx.innerHTML='';
+  items.forEach(it=>{
+    if(!it){ctx.appendChild(Object.assign(document.createElement('hr'),{}));return;}
+    const b=document.createElement('button');b.innerHTML=it[0];b.onclick=()=>{hideCtx();it[1]();};
+    ctx.appendChild(b);
+  });
+  ctx.style.display='block';
+  const r=ctx.getBoundingClientRect();
+  ctx.style.left=Math.min(x,innerWidth-r.width-8)+'px';
+  ctx.style.top=Math.min(y,innerHeight-r.height-8)+'px';
+}
+function hideCtx(){ctx.style.display='none';}
+document.addEventListener('click',e=>{if(!ctx.contains(e.target))hideCtx();});
+document.addEventListener('scroll',hideCtx,true);
+
+/* ================= Clean paste from Word ================= */
+editor.addEventListener('paste',e=>{
+  const cd=e.clipboardData;if(!cd)return;
+  const html=cd.getData('text/html');
+  e.preventDefault();
+  if(html){
+    const doc=new DOMParser().parseFromString(html,'text/html');
+    cleanNode(doc.body);
+    insertHTML(doc.body.innerHTML);
+  }else{
+    document.execCommand('insertText',false,cd.getData('text/plain'));
+  }
+  queueSave();
+});
+const ALLOWED={B:1,STRONG:1,I:1,EM:1,U:1,S:1,STRIKE:1,SUP:1,SUB:1,A:1,P:1,H1:1,H2:1,H3:1,BLOCKQUOTE:1,UL:1,OL:1,LI:1,TABLE:1,THEAD:1,TBODY:1,TR:1,TD:1,TH:1,IMG:1,BR:1,HR:1,SPAN:1,DIV:1,FONT:1};
+function cleanNode(node){
+  [...node.children].forEach(el=>{
+    if(!ALLOWED[el.tagName]){el.replaceWith(...el.childNodes);cleanNode(node);return;}
+    [...el.attributes].forEach(a=>{
+      const ok=/^(href|src|alt|colspan|rowspan)$/.test(a.name)||(a.name==='style'&&/^(text-align|font-weight|font-style|text-decoration|color|background(-color)?|font-family|font-size|text-indent)$/i.test(a.value.split(':')[0].trim()));
+      if(!ok)el.removeAttribute(a.name);
+    });
+    if(el.tagName==='A'){const href=el.getAttribute('href')||'';if(!/^https?:|^mailto:|^#/i.test(href))el.removeAttribute('href');}
+    if(el.tagName==='IMG'&&!el.getAttribute('src'))el.remove();
+    cleanNode(el);
+  });
+}
+
+/* ================= Theme & init ================= */
+$('#btnTheme').onclick=()=>{
+  document.body.classList.toggle('dark');
+  localStorage.setItem(LS_THEME,document.body.classList.contains('dark')?'dark':'light');
+};
+if(localStorage.getItem(LS_THEME)==='dark')document.body.classList.add('dark');
+
+(function init(){
+  let d=loadDocs();
+  if(!Object.keys(d).length)newDoc('Добро пожаловать!',
+    '<h1>Добро пожаловать в МойWord Pro!</h1>'+
+    '<p>Этот редактор работает прямо в браузере и заменяет Word там, где его нет.</p>'+
+    '<h2>Основное</h2><ul class="ul-check">'+
+    '<li>Панель «Главная» — шрифты, списки, поиск и замена, кисточка формата</li>'+
+    '<li>«Вставка» — таблицы, картинки, сноски, оглавление, символы</li>'+
+    '<li>«Макет» — формат страницы, поля, колонки, кнопка «по методичке»</li>'+
+    '<li>«Формулы» — дроби, корни, степени, ∑ и ∫, греческие буквы</li>'+
+    '<li>«Файл» — импорт/экспорт, резервные копии, шаблоны</li></ul>'+
+    '<p>Все документы автоматически сохраняются в браузере. Кнопка 🖨 — печать или PDF.</p>');
+  d=loadDocs();
+  const first=Object.keys(d)[0];
+  const m=meta();m.current=first;saveMeta(m);
+  openDoc(first);
+  applySettings();
+})();
+</script>
+</body>
+</html>
