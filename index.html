@@ -344,7 +344,7 @@ input[type="number"].btn{width:60px;padding:4px 6px;background:var(--bar2);borde
   <span id="statChars">Символов: 0</span>
   <span id="statPages">Страниц: 1</span>
   <span class="spacer"></span>
-  <span>v3.1</span>
+  <span>v3.2</span>
 </div>
 
 <!-- Панель документов -->
@@ -1302,51 +1302,163 @@ function getCurrentSheet(){
 }
 
 /* ====== Enter fix ====== */
-editor.addEventListener('keydown', e => {
-  if (e.key !== 'Enter' || e.isComposing) return;
-  const sheet = getCurrentSheet();
-  if (!sheet) return;
-  if (e.shiftKey) {
-    e.preventDefault();
-    document.execCommand('insertHTML', false, '<br>');
+function getBlockNode(node){
+  const BLOCK=/^(P|H1|H2|H3|H4|H5|H6|LI|BLOCKQUOTE|DIV|PRE)$/i;
+  while(node&&node!==editor){
+    if(node.nodeType===1&&BLOCK.test(node.tagName))return node;
+    node=node.parentElement;
+  }
+  return null;
+}
+function ensureSheetNotEmpty(sheet){
+  if(!sheet.querySelector('p,li,h1,h2,h3,h4,h5,h6,div,blockquote,pre,table,ul,ol')){
+    sheet.innerHTML='<p><br></p>';
+  }
+}
+editor.addEventListener('keydown', e=>{
+  if(e.key!=='Enter'||e.isComposing)return;
+  e.preventDefault();
+  const sel=getSelection();
+  if(!sel.rangeCount)return;
+  const range=sel.getRangeAt(0);
+
+  if(e.shiftKey){
+    // Soft break — insert <br>
+    const br=document.createElement('br');
+    range.insertNode(br);
+    range.setStartAfter(br);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
     queueSave();
     return;
   }
-  const sheets = [...editor.querySelectorAll('.page-sheet')];
-  const isLast = sheet === sheets[sheets.length - 1];
-  const sel = getSelection();
-  if (!sel.rangeCount) return;
-  const range = sel.getRangeAt(0);
-  // Check if at very end of last sheet with substantial content
-  if (isLast && sheet.innerText.length > 300) {
-    let atEnd = false;
-    const endNode = range.endContainer;
-    if (endNode.nodeType === 3) {
-      atEnd = range.endOffset === endNode.length && !endNode.nextSibling;
-    } else {
-      atEnd = range.endOffset === endNode.childNodes.length;
-    }
-    if (atEnd) {
+
+  // Hard break — split current block
+  let block=getBlockNode(range.startContainer);
+  if(!block){
+    // If no block found, wrap in <p>
+    const p=document.createElement('p');
+    p.innerHTML='<br>';
+    range.insertNode(p);
+    range.setStart(p,0);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    queueSave();
+    return;
+  }
+
+  // Split the block at cursor position
+  const afterRange=range.cloneRange();
+  afterRange.setEndAfter(block.lastChild||block);
+  const fragment=afterRange.extractContents();
+  const newBlock=document.createElement(block.tagName);
+  newBlock.appendChild(fragment);
+  // Clean up: if empty, put <br>
+  if(!newBlock.textContent.trim())newBlock.innerHTML='<br>';
+  // Copy classes for lists
+  if(block.className)newBlock.className=block.className;
+  block.parentNode.insertBefore(newBlock,block.nextSibling);
+
+  // Move cursor to new block
+  range.setStart(newBlock,0);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  // If current block became empty, ensure it has <br>
+  if(!block.textContent.trim())block.innerHTML='<br>';
+
+  queueSave();
+});
+
+/* ====== Backspace / Delete sheet protection ====== */
+editor.addEventListener('keydown', e=>{
+  if(e.key!=='Backspace'&&e.key!=='Delete')return;
+  const sel=getSelection();
+  if(!sel.rangeCount)return;
+  const range=sel.getRangeAt(0);
+
+  // Find current sheet
+  let node=range.startContainer;
+  if(node.nodeType===3)node=node.parentElement;
+  let sheet=null;
+  while(node&&node!==editor){
+    if(node.classList&&node.classList.contains('page-sheet')){sheet=node;break;}
+    node=node.parentElement;
+  }
+  if(!sheet)return;
+
+  const sheets=[...editor.querySelectorAll('.page-sheet')];
+  const idx=sheets.indexOf(sheet);
+
+  // Check if trying to delete across sheet boundary (cursor at very start of sheet content)
+  if(e.key==='Backspace'){
+    const atStart=(range.collapsed&&range.startOffset===0&&
+      (range.startContainer===sheet.firstChild||
+       (range.startContainer.nodeType===3&&range.startContainer.parentElement===sheet)||
+       (range.startContainer===sheet)));
+    if(atStart&&idx>0){
       e.preventDefault();
-      const newSheet = document.createElement('div');
-      newSheet.className = 'page-sheet ' + (settings.format || 'a4');
-      if (settings.orient === 'landscape') newSheet.classList.add('landscape');
-      newSheet.innerHTML = '<p><br></p>';
-      editor.appendChild(newSheet);
-      const p = newSheet.querySelector('p');
-      const r = document.createRange();
-      r.setStart(p, 0);
-      r.collapse(true);
+      // Merge current sheet into previous
+      const prev=sheets[idx-1];
+      const html=sheet.innerHTML;
+      prev.insertAdjacentHTML('beforeend',html);
+      sheet.remove();
+      // Focus end of prev
+      const r=document.createRange();
+      r.selectNodeContents(prev);
+      r.collapse(false);
       sel.removeAllRanges();
       sel.addRange(r);
       queueSave();
       return;
     }
+    if(atStart&&idx===0){
+      e.preventDefault();
+      // First sheet — just prevent deletion, ensure it has content
+      ensureSheetNotEmpty(sheet);
+      return;
+    }
   }
-  // Normal Enter inside sheet — use insertParagraph so it stays inside the sheet
-  e.preventDefault();
-  document.execCommand('insertParagraph', false, null);
-  queueSave();
+
+  // Check if sheet will become empty after this delete
+  // We can't easily predict, so use beforeinput for that
+});
+
+/* ====== Prevent sheet deletion via beforeinput ====== */
+editor.addEventListener('beforeinput', e=>{
+  if(e.inputType!=='deleteContentBackward'&&e.inputType!=='deleteContentForward')return;
+  const sel=getSelection();
+  if(!sel.rangeCount)return;
+  const range=sel.getRangeAt(0);
+  let node=range.startContainer;
+  if(node.nodeType===3)node=node.parentElement;
+  let sheet=null;
+  while(node&&node!==editor){
+    if(node.classList&&node.classList.contains('page-sheet')){sheet=node;break;}
+    node=node.parentElement;
+  }
+  if(!sheet)return;
+  // If the sheet would become completely empty, prevent and add <p><br></p>
+  const text=sheet.innerText.replace(/\s/g,'');
+  if(!text||text.length<=1){
+    e.preventDefault();
+    ensureSheetNotEmpty(sheet);
+    // If there's a previous sheet, move cursor there
+    const sheets=[...editor.querySelectorAll('.page-sheet')];
+    const idx=sheets.indexOf(sheet);
+    if(idx>0){
+      const prev=sheets[idx-1];
+      const r=document.createRange();
+      r.selectNodeContents(prev);
+      r.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+    queueSave();
+  }
 });
 
 /* ====== Progress ====== */
